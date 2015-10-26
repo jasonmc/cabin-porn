@@ -42,7 +42,6 @@ def setBackgroundGnome(fullPath):
     gsettings = Gio.Settings.new(SCHEMA)
     gsettings.set_string(KEY, "file://" + fullPath)
 
-
 def createDirIfNotExists(path):
     try:
         os.makedirs(path)
@@ -52,10 +51,8 @@ def createDirIfNotExists(path):
         else:
             raise
 
-
 def directoryToSave():
     return os.path.join(os.path.expanduser("~/Pictures/cabins"))
-
 
 def getPhotoUrls():
     response = requests.get(url)
@@ -66,7 +63,6 @@ def getPhotoUrls():
                 for p in posts)
     else:
         return iter(())
-
 
 def downloadImageIfNotExists(url, path):
     if not os.path.isfile(path):
@@ -82,24 +78,33 @@ def detectOSAndSetBackground(fullPath):
     elif platform.system() == "Darwin":
         setBackgroundOSX(fullPath)
     else:
-        print("Not supported on this platform")    
+        print("Not supported on this platform")
+
+def meetsSizeRequirements(fullPath):
+    width, height = Image.open(fullPath).size
+    return width >= 1024 and height >= 768
 
 def main():
+    defaultPath = os.path.join(os.path.expanduser("~/Pictures/cabins"))
     parser = OptionParser()
     parser.add_option("-r", "--random", action="store_true",
                       dest="random_cabin", default=False,
                       help="pick a random cabin")
+    parser.add_option("-l", "--large-only", dest="large_only",
+                      help="only use large images", default=False,
+                      action="store_true")
+    parser.add_option("-p", "--path", dest="base_dir",
+                      help="write cabins to PATH", metavar="PATH",
+                      default=defaultPath)
     options, _ = parser.parse_args()
 
-    saveDir = directoryToSave()
-    createDirIfNotExists(saveDir)
+    createDirIfNotExists(base_dir)
     slug, url = (random.choice(list(getPhotoUrls()))
                  if options.random_cabin
                  else getPhotoUrls().next())
-    fullPath = os.path.join(saveDir, slug + os.path.splitext(url)[1])
+    fullPath = os.path.join(base_dir, slug + os.path.splitext(url)[1])
     downloadImageIfNotExists(url, fullPath)
-    width, height = Image.open(fullPath).size
-    if width >= 1024 and height >= 768:
+    if not options.large_only or meetsSizeRequirements(fullPath):
         detectOSAndSetBackground(fullPath)
 
 if __name__ == "__main__":
