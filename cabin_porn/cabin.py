@@ -11,10 +11,9 @@ https://github.com/grahamgilbert/macscripts/tree/master/set_desktops
 import errno
 import json
 import os.path
+import platform
 import random
 import requests
-from AppKit import NSWorkspace, NSScreen
-from Foundation import NSURL
 from PIL import Image
 from optparse import OptionParser
 
@@ -24,6 +23,8 @@ url = "https://api.tumblr.com/v2/blog/cabinporn.com/posts/photo"\
 
 
 def setBackgroundOSX(fullPath):
+    from AppKit import NSWorkspace, NSScreen
+    from Foundation import NSURL
     # generate a fileURL for the desktop picture
     file_path = NSURL.fileURLWithPath_(fullPath)
     # get shared workspace
@@ -33,6 +34,13 @@ def setBackgroundOSX(fullPath):
         # tell the workspace to set the desktop picture
         (result, error) = ws.setDesktopImageURL_forScreen_options_error_(
             file_path, screen, {}, None)
+
+def setBackgroundGnome(fullPath):
+    from gi.repository import Gio
+    SCHEMA = 'org.gnome.desktop.background'
+    KEY = 'picture-uri'
+    gsettings = Gio.Settings.new(SCHEMA)
+    gsettings.set_string(KEY, "file://" + fullPath)
 
 
 def createDirIfNotExists(path):
@@ -68,6 +76,13 @@ def downloadImageIfNotExists(url, path):
                 for chunk in r:
                     f.write(chunk)
 
+def detectOSAndSetBackground(fullPath):
+    if platform.system() == "Linux":
+        setBackgroundGnome(fullPath)
+    elif platform.system() == "Darwin":
+        setBackgroundOSX(fullPath)
+    else:
+        print("Not supported on this platform")    
 
 def main():
     parser = OptionParser()
@@ -85,7 +100,7 @@ def main():
     downloadImageIfNotExists(url, fullPath)
     width, height = Image.open(fullPath).size
     if width >= 1024 and height >= 768:
-        setBackgroundOSX(fullPath)
+        detectOSAndSetBackground(fullPath)
 
 if __name__ == "__main__":
     main()
